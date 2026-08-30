@@ -1,0 +1,43 @@
+database:
+  path: data/events.db
+detection:
+  classes_to_detect:
+  - person
+  - car
+  - motorcycle
+  - truck
+  confidence_threshold: 0.5
+  frame_interval: 30
+  model: yolov8n.pt
+jarvis:
+  name: JARVIS
+  personality: calm_reliable
+llm:
+  gemini:
+    api_key: YOUR_GEMINI_API_KEY
+    model: gemini-2.5-flash
+  ollama:
+    base_url: http://localhost:11434
+    model: llama3.1
+  openai:
+    api_key: YOUR_OPENAI_API_KEY
+    model: gpt-4o-mini
+  provider: gemini
+recording:
+  base_path: data/recordings
+  max_clip_duration: 30
+  pre_event_buffer: 5
+  retention_days: 30
+  snapshot_path: data/snapshots
+security:
+  alert_threshold: medium
+  mode: home
+  night_hours:
+    end: 06:00
+    start: '22:00'
+telegram:
+  bot_token: YOUR_BOT_TOKEN_HERE
+  chat_id: YOUR_CHAT_ID_HERE
+web:
+  host: 0.0.0.0
+  port: 8080

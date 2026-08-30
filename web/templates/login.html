@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS HOME - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a1a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-container { background: #111128; border: 1px solid #2a2a4a; border-radius: 16px; padding: 40px; width: 400px; text-align: center; }
+        .login-header { margin-bottom: 30px; }
+        .login-header h1 { color: #00ff88; font-size: 28px; margin-bottom: 8px; }
+        .login-header p { color: #888; font-size: 14px; }
+        .reactor-icon { width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #00ff88, #00cc6a, #004422); margin: 0 auto 20px; position: relative; box-shadow: 0 0 40px rgba(0,255,136,0.3); }
+        .reactor-icon::after { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border-radius: 50%; border: 2px solid rgba(0,255,136,0.4); animation: pulse-ring 2s ease-in-out infinite; }
+        @keyframes pulse-ring { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.5; } }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; color: #aaa; font-size: 13px; margin-bottom: 6px; }
+        .form-group input { width: 100%; padding: 12px 16px; background: #0d0d20; border: 1px solid #2a2a4a; border-radius: 8px; color: #fff; font-size: 14px; outline: none; transition: border-color 0.3s; }
+        .form-group input:focus { border-color: #00ff88; box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+        .btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #00cc6a, #00aa55); border: none; border-radius: 8px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,255,136,0.3); }
+        .btn:active { transform: translateY(0); }
+        .error { color: #ff4444; font-size: 13px; margin-top: 10px; display: none; }
+        .error.show { display: block; }
+        .hint { color: #666; font-size: 11px; margin-top: 15px; }
+        .lockdown-warning { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); border-radius: 8px; padding: 12px; margin-top: 15px; display: none; }
+        .lockdown-warning.show { display: block; }
+        .lockdown-warning i { color: #ff4444; margin-right: 8px; }
+        .lockdown-warning span { color: #ff8888; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="reactor-icon"></div>
+        <div class="login-header">
+            <h1>JARVIS HOME</h1>
+            <p>Home Security System</p>
+        </div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Access Code</label>
+                <input type="password" id="password" placeholder="Enter password" required autofocus>
+            </div>
+            <button type="submit" class="btn" id="loginBtn">
+                <i class="fas fa-lock"></i> Authenticate
+            </button>
+            <div class="error" id="error"></div>
+            <div class="lockdown-warning" id="lockdown">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Account locked. Wait 5 minutes.</span>
+            </div>
+        </form>
+        <div class="hint">Default: jarvis2024</div>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pw = document.getElementById('password').value;
+            const err = document.getElementById('error');
+            const lockdown = document.getElementById('lockdown');
+            const btn = document.getElementById('loginBtn');
+            err.classList.remove('show');
+            lockdown.classList.remove('show');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
+            try {
+                const r = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password:pw})});
+                const d = await r.json();
+                if (d.success) {
+                    btn.innerHTML = '<i class="fas fa-check"></i> Access Granted';
+                    setTimeout(() => window.location.href = '/', 500);
+                } else {
+                    err.textContent = d.error || 'Invalid password';
+                    err.classList.add('show');
+                    if (r.status === 429) lockdown.classList.add('show');
+                    btn.innerHTML = '<i class="fas fa-lock"></i> Authenticate';
+                }
+            } catch(e) {
+                err.textContent = 'Connection failed';
+                err.classList.add('show');
+                btn.innerHTML = '<i class="fas fa-lock"></i> Authenticate';
+            }
+        });
+    </script>
+</body>
+</html>

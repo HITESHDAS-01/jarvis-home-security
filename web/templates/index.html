@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS HOME</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app">
+        <nav class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-shield-alt"></i></div>
+                <div class="logo-text">
+                    <span class="logo-name">JARVIS</span>
+                    <span class="logo-sub">HOME SECURITY</span>
+                </div>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-page="dashboard"><i class="fas fa-th-large"></i><span>Dashboard</span></li>
+                <li data-page="cameras"><i class="fas fa-video"></i><span>Cameras</span></li>
+                <li data-page="events"><i class="fas fa-bell"></i><span>Events</span></li>
+                <li data-page="zones"><i class="fas fa-draw-polygon"></i><span>Zones</span></li>
+                <li data-page="recordings"><i class="fas fa-film"></i><span>Recordings</span></li>
+                <li data-page="chat"><i class="fas fa-robot"></i><span>JARVIS AI</span></li>
+                <li data-page="telegram-chat"><i class="fab fa-telegram"></i><span>Telegram</span></li>
+                <li data-page="system"><i class="fas fa-desktop"></i><span>System</span></li>
+                <li class="nav-divider"></li>
+                <li class="nav-section-title">SETUP</li>
+                <li data-page="setup-cameras"><i class="fas fa-cog"></i><span>Camera Setup</span></li>
+                <li data-page="setup-telegram"><i class="fab fa-telegram"></i><span>Telegram Setup</span></li>
+                <li data-page="setup-llm"><i class="fas fa-brain"></i><span>AI Setup</span></li>
+                <li data-page="settings"><i class="fas fa-sliders-h"></i><span>Settings</span></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="jarvis-status">
+                    <div class="reactor"></div>
+                    <div class="status-text">
+                        <span class="status-label">JARVIS</span>
+                        <span class="status-state" id="jarvis-state">ONLINE</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left"><h1 id="page-title">Dashboard</h1></div>
+                <div class="header-right">
+                    <div class="security-mode">
+                        <span class="mode-label">MODE:</span>
+                        <select id="mode-select"><option value="home">HOME</option><option value="away">AWAY</option><option value="sleep">SLEEP</option></select>
+                    </div>
+                    <div class="header-divider"></div>
+                    <div class="quick-actions">
+                        <button class="action-btn" onclick="takeSnapshotAll()" title="Snapshot All"><i class="fas fa-camera"></i></button>
+                        <button class="action-btn" onclick="toggleRecording()" title="Record Now"><i class="fas fa-circle" style="color:#ef4444"></i></button>
+                    </div>
+                    <div class="header-divider"></div>
+                    <div class="clock" id="clock"></div>
+                </div>
+            </header>
+
+            <div class="content">
+                <!-- DASHBOARD -->
+                <div class="page active" id="page-dashboard">
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-icon cameras"><i class="fas fa-video"></i></div><div class="stat-info"><span class="stat-value" id="cameras-online">0/0</span><span class="stat-label">Cameras Online</span></div></div>
+                        <div class="stat-card"><div class="stat-icon events"><i class="fas fa-bell"></i></div><div class="stat-info"><span class="stat-value" id="events-today">0</span><span class="stat-label">Events Today</span></div></div>
+                        <div class="stat-card"><div class="stat-icon security"><i class="fas fa-shield-alt"></i></div><div class="stat-info"><span class="stat-value" id="security-status">LOADING</span><span class="stat-label">Security Status</span></div></div>
+                        <div class="stat-card"><div class="stat-icon storage"><i class="fas fa-hdd"></i></div><div class="stat-info"><span class="stat-value" id="storage-usage">0%</span><span class="stat-label">Storage Used</span></div></div>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="camera-grid" id="camera-grid"></div>
+                        <div class="recent-events">
+                            <div class="panel-header"><h3>Recent Events</h3><button class="link-btn" onclick="switchPage('events')">View All</button></div>
+                            <div class="events-list" id="recent-events"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CAMERAS -->
+                <div class="page" id="page-cameras"><div id="cameras-full"></div></div>
+
+                <!-- EVENTS -->
+                <div class="page" id="page-events">
+                    <div class="events-header"><h3>Event History</h3><div class="events-filters"><select id="events-hours"><option value="1">Last 1 hour</option><option value="2" selected>Last 2 hours</option><option value="6">Last 6 hours</option><option value="24">Last 24 hours</option><option value="168">Last 7 days</option></select></div></div>
+                    <div class="events-full-list" id="events-full-list"></div>
+                </div>
+
+                <!-- ZONES -->
+                <div class="page" id="page-zones">
+                    <div class="zones-header"><h3>Security Zones</h3><button class="btn-primary" onclick="addZone()"><i class="fas fa-plus"></i> Add Zone</button></div>
+                    <div class="zones-grid" id="zones-grid"></div>
+                </div>
+
+                <!-- RECORDINGS -->
+                <div class="page" id="page-recordings">
+                    <div class="recordings-header"><h3>Recordings</h3></div>
+                    <div class="recordings-list" id="recordings-list"></div>
+                </div>
+
+                <!-- JARVIS CHAT -->
+                <div class="page" id="page-chat">
+                    <div class="chat-container">
+                        <div class="chat-header"><div class="chat-avatar"><div class="reactor-small"></div></div><div class="chat-info"><span class="chat-name">JARVIS</span><span class="chat-status">Just A Rather Very Intelligent System</span></div></div>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message jarvis"><div class="message-avatar"><i class="fas fa-robot"></i></div><div class="message-content"><p>Good evening, sir. JARVIS Home Security system is online. How may I assist you?</p><span class="message-time">Just now</span></div></div>
+                        </div>
+                        <div class="chat-input"><input type="text" id="chat-input" placeholder="Ask JARVIS anything..." onkeypress="if(event.key==='Enter')sendMessage()"><button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button></div>
+                    </div>
+                </div>
+
+                <!-- TELEGRAM CHAT -->
+                <div class="page" id="page-telegram-chat">
+                    <div class="chat-container">
+                        <div class="chat-header"><div class="chat-avatar" style="background:linear-gradient(135deg,#0088cc,#005fa3)"><i class="fab fa-telegram" style="color:#fff;font-size:24px"></i></div><div class="chat-info"><span class="chat-name">Telegram Bot</span><span class="chat-status" id="tg-chat-status">Messages from Telegram appear here (read-only)</span></div></div>
+                        <div class="chat-messages" id="telegram-messages">
+                            <div class="message system"><div class="message-content"><p>Telegram chat will appear here once bot is configured.</p></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SYSTEM -->
+                <div class="page" id="page-system">
+                    <div class="system-grid">
+                        <div class="system-card"><h3><i class="fas fa-microchip"></i> CPU</h3><div class="gauge" id="cpu-gauge"><div class="gauge-value">0%</div></div><div class="system-details" id="cpu-details"></div></div>
+                        <div class="system-card"><h3><i class="fas fa-memory"></i> Memory</h3><div class="gauge" id="ram-gauge"><div class="gauge-value">0%</div></div><div class="system-details" id="ram-details"></div></div>
+                        <div class="system-card"><h3><i class="fas fa-hdd"></i> Disk</h3><div class="gauge" id="disk-gauge"><div class="gauge-value">0%</div></div><div class="system-details" id="disk-details"></div></div>
+                        <div class="system-card"><h3><i class="fas fa-network-wired"></i> Network</h3><div class="system-details"><div class="info-row"><span>Status:</span><span>Connected</span></div></div></div>
+                    </div>
+                    <div class="system-logs"><h3><i class="fas fa-terminal"></i> Live Logs</h3><div class="log-output" id="log-output"></div></div>
+                </div>
+
+                <!-- ==================== SETUP PAGES ==================== -->
+
+                <!-- CAMERA SETUP -->
+                <div class="page" id="page-setup-cameras">
+                    <div class="setup-header">
+                        <h3><i class="fas fa-video"></i> Camera Setup</h3>
+                        <button class="btn-primary" onclick="showCameraForm()"><i class="fas fa-plus"></i> Add Camera</button>
+                    </div>
+                    <div class="setup-info">
+                        <p>Add your CCTV cameras here. JARVIS supports RTSP, HTTP, MJPEG, ONVIF, WiFi, LAN, USB, and file modes.</p>
+                    </div>
+                    <div class="cameras-manage-list" id="cameras-manage-list"></div>
+
+                    <!-- Camera Add/Edit Form -->
+                    <div class="modal-overlay" id="camera-modal" style="display:none">
+                        <div class="modal">
+                            <div class="modal-header">
+                                <h3 id="camera-form-title">Add Camera</h3>
+                                <button class="modal-close" onclick="closeCameraForm()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" id="cam-edit-index" value="-1">
+                                <div class="form-row">
+                                    <label>Camera Name *</label>
+                                    <input type="text" id="cam-name" placeholder="e.g. Front Gate">
+                                </div>
+                                <div class="form-row">
+                                    <label>Connection Mode *</label>
+                                    <select id="cam-mode" onchange="toggleCamModeFields()">
+                                        <option value="rtsp">RTSP (Hikvision, Dahua)</option>
+                                        <option value="http">HTTP Stream</option>
+                                        <option value="mjpeg">MJPEG Stream</option>
+                                        <option value="onvif">ONVIF Camera</option>
+                                        <option value="wifi">WiFi Camera (Tapo, Ezviz)</option>
+                                        <option value="lan">LAN Direct IP</option>
+                                        <option value="usb">USB Camera / Webcam</option>
+                                        <option value="file">Video File (Testing)</option>
+                                    </select>
+                                </div>
+                                <div id="cam-fields-ip">
+                                    <div class="form-row">
+                                        <label>IP Address</label>
+                                        <input type="text" id="cam-ip" placeholder="e.g. 192.168.1.100">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>Port</label>
+                                        <input type="text" id="cam-port" placeholder="e.g. 554">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>Username</label>
+                                        <input type="text" id="cam-username" placeholder="e.g. admin">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>Password</label>
+                                        <input type="password" id="cam-password" placeholder="Camera password">
+                                    </div>
+                                </div>
+                                <div id="cam-fields-usb" style="display:none">
+                                    <div class="form-row">
+                                        <label>Device ID</label>
+                                        <input type="number" id="cam-device-id" value="0" min="0" max="10">
+                                    </div>
+                                </div>
+                                <div id="cam-fields-file" style="display:none">
+                                    <div class="form-row">
+                                        <label>Video File Path</label>
+                                        <input type="text" id="cam-file-path" placeholder="e.g. C:/videos/test.mp4">
+                                    </div>
+                                </div>
+                                <div id="cam-fields-rtsp" style="display:none">
+                                    <div class="form-row">
+                                        <label>Full RTSP URL (optional, overrides IP settings)</label>
+                                        <input type="text" id="cam-rtsp-url" placeholder="rtsp://admin:pass@192.168.1.100:554/stream1">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>Channel</label>
+                                        <input type="number" id="cam-channel" value="1" min="1">
+                                    </div>
+                                    <div class="form-row">
+                                        <label>Stream</label>
+                                        <input type="number" id="cam-stream" value="0" min="0">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <label>Recording</label>
+                                    <select id="cam-recording">
+                                        <option value="hybrid">Hybrid (Continuous + Event)</option>
+                                        <option value="event_only">Event Only</option>
+                                        <option value="continuous">Continuous Only</option>
+                                        <option value="disabled">Disabled</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label>Quality</label>
+                                    <select id="cam-quality">
+                                        <option value="low">Low (saves space)</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="cam-test-result"></div>
+                            <div class="modal-footer">
+                                <button class="btn-secondary" onclick="closeCameraForm()">Cancel</button>
+                                <button class="btn-primary" onclick="testCamera()"><i class="fas fa-plug"></i> Test</button>
+                                <button class="btn-primary" onclick="saveCamera()"><i class="fas fa-save"></i> Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TELEGRAM SETUP -->
+                <div class="page" id="page-setup-telegram">
+                    <div class="setup-header"><h3><i class="fab fa-telegram"></i> Telegram Setup</h3></div>
+                    <div class="setup-info"><p>Connect JARVIS to Telegram for alerts, commands, and AI chat.</p></div>
+                    <div class="settings-section" style="max-width:600px">
+                        <div class="section-header"><i class="fab fa-telegram"></i><h3>Bot Configuration</h3></div>
+                        <div class="setup-steps">
+                            <div class="step"><span class="step-num">1</span><div><strong>Bot banao</strong><br>Telegram me <a href="https://t.me/BotFather" target="_blank">@BotFather</a> ko jao, <code>/newbot</code> bhejo, naam do "JARVIS Home Security"</div></div>
+                            <div class="step"><span class="step-num">2</span><div><strong>Token copy karo</strong><br>BotFather token dega, copy karo aur yahan paste karo</div></div>
+                            <div class="step"><span class="step-num">3</span><div><strong>Chat ID lao</strong><br>Apne bot ko /start bhejo, fir <a href="https://api.telegram.org/botYOUR_TOKEN/getUpdates" target="_blank">getUpdates</a> se chat_id nikalo</div></div>
+                        </div>
+                        <div class="form-row"><label>Bot Token *</label><input type="text" id="tg-token" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"></div>
+                        <div class="form-row"><label>Chat ID *</label><input type="text" id="tg-chat-id" placeholder="e.g. 123456789"></div>
+                        <div class="form-row">
+                            <label>Test Connection</label>
+                            <button class="btn-primary" onclick="testTelegram()"><i class="fas fa-paper-plane"></i> Send Test Message</button>
+                        </div>
+                        <div id="tg-test-result" style="margin-top:10px"></div>
+                        <div class="form-actions" style="margin-top:16px">
+                            <button class="btn-primary" onclick="saveTelegram()"><i class="fas fa-save"></i> Save Telegram Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LLM SETUP -->
+                <div class="page" id="page-setup-llm">
+                    <div class="setup-header"><h3><i class="fas fa-brain"></i> AI / LLM Setup</h3></div>
+                    <div class="setup-info"><p>Configure AI provider for JARVIS chat, event summaries, and smart responses.</p></div>
+                    <div class="settings-section" style="max-width:600px">
+                        <div class="section-header"><i class="fas fa-brain"></i><h3>AI Provider</h3></div>
+                        <div class="form-row">
+                            <label>Provider *</label>
+                            <select id="llm-provider" onchange="toggleLLMFields()">
+                                <option value="gemini">Google Gemini (Free tier available)</option>
+                                <option value="openai">OpenAI GPT</option>
+                                <option value="ollama">Ollama (Local, Free)</option>
+                            </select>
+                        </div>
+                        <div id="llm-fields-api">
+                            <div class="setup-steps">
+                                <div class="step"><span class="step-num">1</span><div id="llm-step1"><strong>API Key lo</strong><br><a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> pe jao, free API key banao</div></div>
+                            </div>
+                            <div class="form-row"><label>API Key *</label><input type="password" id="llm-api-key" placeholder="Enter your API key"></div>
+                            <div class="form-row"><label>Model</label><input type="text" id="llm-model-name" placeholder="e.g. gemini-1.5-flash"></div>
+                        </div>
+                        <div id="llm-fields-ollama" style="display:none">
+                            <div class="setup-steps">
+                                <div class="step"><span class="step-num">1</span><div><strong>Ollama install karo</strong><br><code>ollama.com</code> se download karo, install karo</div></div>
+                                <div class="step"><span class="step-num">2</span><div><strong>Model pull karo</strong><br><code>ollama pull llama3.1</code> run karo terminal me</div></div>
+                            </div>
+                            <div class="form-row"><label>Ollama URL</label><input type="text" id="llm-ollama-url" value="http://localhost:11434"></div>
+                            <div class="form-row"><label>Model</label><input type="text" id="llm-ollama-model" placeholder="e.g. llama3.1"></div>
+                        </div>
+                        <div class="form-row">
+                            <label>JARVIS Personality</label>
+                            <select id="llm-personality">
+                                <option value="calm_reliable">Calm & Reliable (Default)</option>
+                                <option value="witty_professional">Witty Professional</option>
+                                <option value="stark_style">Tony Stark Style</option>
+                                <option value="minimal">Minimal</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Test AI</label>
+                            <button class="btn-primary" onclick="testLLM()"><i class="fas fa-flask"></i> Test Connection</button>
+                        </div>
+                        <div id="llm-test-result" style="margin-top:10px"></div>
+                        <div class="form-actions" style="margin-top:16px">
+                            <button class="btn-primary" onclick="saveLLM()"><i class="fas fa-save"></i> Save AI Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS (GENERAL) -->
+                <div class="page" id="page-settings">
+                    <div class="settings-grid">
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-shield-alt"></i><h3>Security</h3></div>
+                            <div class="setting-row"><label>Security Mode</label><select id="set-mode"><option value="home">Home</option><option value="away">Away</option><option value="sleep">Sleep</option></select></div>
+                            <div class="setting-row"><label>Alert Threshold</label><select id="set-alert-threshold"><option value="low">Low - All events</option><option value="medium" selected>Medium - Important</option><option value="high">High - Critical</option></select></div>
+                            <div class="setting-row"><label>Night Start</label><input type="time" id="set-night-start" value="22:00"></div>
+                            <div class="setting-row"><label>Night End</label><input type="time" id="set-night-end" value="06:00"></div>
+                            <div class="setting-row"><label>Auto Night Mode</label><select id="set-auto-night"><option value="true">Enabled</option><option value="false" selected>Disabled</option></select></div>
+                            <div class="setting-row"><label>Alert Sound</label><select id="set-alert-sound"><option value="true" selected>Enabled</option><option value="false">Disabled</option></select></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-key"></i><h3>Password</h3></div>
+                            <div class="setting-row"><label>Current Password</label><input type="password" id="pw-old" placeholder="Current password"></div>
+                            <div class="setting-row"><label>New Password</label><input type="password" id="pw-new" placeholder="Min 8 characters"></div>
+                            <div class="setting-row"><label>Confirm</label><input type="password" id="pw-confirm" placeholder="Confirm new password"></div>
+                            <div class="setting-row"><button class="btn-primary" onclick="changePassword()" style="margin-top:10px"><i class="fas fa-key"></i> Change Password</button></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-crosshairs"></i><h3>Detection</h3></div>
+                            <div class="setting-row"><label>Model</label><select id="set-detect-model"><option value="yolov8n.pt">YOLOv8 Nano</option><option value="yolov8s.pt">YOLOv8 Small</option><option value="yolov8m.pt">YOLOv8 Medium</option></select></div>
+                            <div class="setting-row"><label>Confidence</label><input type="range" id="set-confidence" min="0.1" max="1.0" step="0.05" value="0.5"><span class="range-value" id="confidence-value">0.5</span></div>
+                            <div class="setting-row"><label>Frame Interval</label><input type="number" id="set-frame-interval" value="30" min="5" max="120"></div>
+                            <div class="setting-row"><label>Target Objects</label><input type="text" id="set-target-objects" value="person,car,motorcycle,truck" placeholder="person,car,dog"></div>
+                            <div class="setting-row" style="margin-top:-8px"><small style="color:#666;font-size:11px">Comma separated: person, car, dog, cat, bicycle</small></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-video"></i><h3>Recording</h3></div>
+                            <div class="setting-row"><label>Recording Path</label><input type="text" id="set-recording-path" value="data/recordings" placeholder="e.g. D:\Recordings or data/recordings"></div>
+                            <div class="setting-row" style="margin-top:-10px"><small style="color:#666;font-size:11px">Examples: <code>D:\JARVIS\Recordings</code> | <code>E:\CCTV</code> | <code>data/recordings</code> | <code>\\NAS\shared\recordings</code></small></div>
+                            <div class="setting-row"><label>Storage Used</label><span id="recording-storage-info" style="color:#00ff88;font-weight:600">Calculating...</span></div>
+                            <div class="setting-row"><label>Max Clip (sec)</label><input type="number" id="set-clip-duration" value="30" min="5" max="300"></div>
+                            <div class="setting-row"><label>Pre-Buffer (sec)</label><input type="number" id="set-pre-buffer" value="5" min="0" max="30"></div>
+                            <div class="setting-row"><label>Auto-Cleanup (days)</label><input type="number" id="set-cleanup-days" value="30" min="1" max="365"></div>
+                            <div class="setting-row"><label>Snapshot Quality</label><select id="set-snapshot-quality"><option value="low">Low (640x480)</option><option value="medium" selected>Medium (1280x720)</option><option value="high">High (1920x1080)</option></select></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-camera"></i><h3>Cameras</h3></div>
+                            <div class="setting-row"><label>Reconnect Interval (sec)</label><input type="number" id="set-reconnect-interval" value="30" min="5" max="300"></div>
+                            <div class="setting-row"><label>Max Reconnect Attempts</label><input type="number" id="set-max-reconnect" value="5" min="1" max="20"></div>
+                            <div class="setting-row"><label>Stream Timeout (sec)</label><input type="number" id="set-stream-timeout" value="30" min="5" max="120"></div>
+                            <div class="setting-row"><label>Default Mode</label><select id="set-default-cam-mode"><option value="rtsp" selected>RTSP</option><option value="http">HTTP</option><option value="mjpeg">MJPEG</option><option value="onvif">ONVIF</option></select></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-bell"></i><h3>Notifications</h3></div>
+                            <div class="setting-row"><label>Telegram Alerts</label><select id="set-tg-alerts"><option value="true" selected>Enabled</option><option value="false">Disabled</option></select></div>
+                            <div class="setting-row"><label>Camera Offline Alerts</label><select id="set-cam-offline-alert"><option value="true" selected>Enabled</option><option value="false">Disabled</option></select></div>
+                            <div class="setting-row"><label>Alert Cooldown (sec)</label><input type="number" id="set-alert-cooldown" value="60" min="10" max="600"></div>
+                            <div class="setting-row"><label>Daily Summary</label><select id="set-daily-summary"><option value="true">Enabled</option><option value="false" selected>Disabled</option></select></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-globe"></i><h3>Web Dashboard</h3></div>
+                            <div class="setting-row"><label>Port</label><input type="number" id="set-web-port" value="8080"></div>
+                            <div class="setting-row"><label>Refresh Rate (sec)</label><input type="number" id="set-refresh-rate" value="5" min="1" max="60"></div>
+                            <div class="setting-row"><label>Session Timeout (hours)</label><input type="number" id="set-session-timeout" value="2" min="1" max="24"></div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="section-header"><i class="fas fa-sliders-h"></i><h3>Advanced</h3></div>
+                            <div class="setting-row"><label>Log Level</label><select id="set-log-level"><option value="DEBUG">Debug</option><option value="INFO" selected>Info</option><option value="WARNING">Warning</option><option value="ERROR">Error</option></select></div>
+                            <div class="setting-row"><label>Max Log Size (MB)</label><input type="number" id="set-max-log-size" value="10" min="1" max="100"></div>
+                            <div class="setting-row"><label>Disk Check Interval (sec)</label><input type="number" id="set-disk-check" value="60" min="10" max="600"></div>
+                            <div class="setting-row"><label>Min Free Disk (GB)</label><input type="number" id="set-min-free-disk" value="5" min="1" max="50"></div>
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save All Settings</button>
+                        <button class="btn-danger" onclick="restartSystem()"><i class="fas fa-sync"></i> Restart JARVIS</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

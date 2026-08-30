@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.venv/
+
+# Data
+data/
+*.db
+
+# Logs
+logs/
+
+# Recordings
+recordings/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+
+# YOLO models (large files)
+*.pt
+
+# Temp
+*.tmp
+*.bak
+error.txt
+output.txt
+err.txt
+err2.txt
+
+# Config (contains credentials)
+config/.admin_password
+config/cameras.yaml
+config/settings.yaml
+
+# Camera recordings
+phone_cam/
+cam_*/
