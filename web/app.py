@@ -193,6 +193,7 @@ class WebDashboard:
         self.app.add_url_rule("/api/mode", "api_mode", self._require_auth(self.api_mode), methods=["POST"])
         self.app.add_url_rule("/api/zones", "api_zones", self._require_auth(self.api_zones))
         self.app.add_url_rule("/api/zones/save", "api_zones_save", self._require_auth(self.api_zones_save), methods=["POST"])
+        self.app.add_url_rule("/api/zones/update", "api_zones_update", self._require_auth(self.api_zones_update), methods=["POST"])
         self.app.add_url_rule("/api/zones/delete", "api_zones_delete", self._require_auth(self.api_zones_delete), methods=["POST"])
         self.app.add_url_rule("/api/recordings", "api_recordings", self._require_auth(self.api_recordings))
         self.app.add_url_rule("/api/recordings/download", "api_recording_download", self._require_auth(self.api_recording_download))
@@ -471,6 +472,26 @@ class WebDashboard:
         self.zone_manager._save_config()
         self.security.audit(f"ZONE_SAVE: {key}", ip=request.remote_addr)
         return jsonify({"success": True, "zone": self.zone_manager.zones[key]})
+
+    def api_zones_update(self):
+        data = request.get_json() or {}
+        key = re.sub(r'[^\w-]', '_', data.get("key", "").strip().lower())
+        if not key or key not in self.zone_manager.zones:
+            return jsonify({"success": False, "error": "Zone not found"}), 404
+        zone = self.zone_manager.zones[key]
+        zone_type = data.get("type", "")
+        if zone_type and zone_type in ["restricted", "monitoring"]:
+            for area in zone.get("areas", []):
+                area["type"] = zone_type
+        if "alert_on_entry" in data:
+            for area in zone.get("areas", []):
+                area["alert_on_entry"] = bool(data["alert_on_entry"])
+        if "alert_hours" in data:
+            for area in zone.get("areas", []):
+                area["alert_hours"] = data["alert_hours"]
+        self.zone_manager._save_config()
+        self.security.audit(f"ZONE_UPDATE: {key}", ip=request.remote_addr)
+        return jsonify({"success": True, "zone": zone})
 
     def api_zones_delete(self):
         data = request.get_json() or {}

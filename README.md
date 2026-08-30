@@ -1,6 +1,6 @@
 # JARVIS Home Security System
 
-AI-powered home security assistant that monitors CCTV cameras, detects important activity, and communicates through Telegram.
+AI-powered home security assistant that monitors CCTV cameras, detects important activity, and communicates through Telegram and Web Dashboard.
 
 ## Features
 
@@ -8,13 +8,16 @@ AI-powered home security assistant that monitors CCTV cameras, detects important
 - YOLOv8 object detection (person, car, motorcycle, truck)
 - Automatic event recording and snapshots
 - Telegram alerts with images
-- Natural language chat through Telegram
+- Natural language chat (Telegram + Web)
+- Web dashboard with real-time monitoring
 - Security modes (Home, Away, Sleep)
 - Camera zones and security rules
 - Auto-reconnect on camera disconnect
-- Event deduplication
+- Event deduplication (60s cooldown)
 - Disk space monitoring
 - Local recording (no cloud required)
+- AI-powered chat (Gemini, OpenAI, Ollama)
+- PC stats monitoring (CPU, RAM, Disk)
 
 ## Quick Start
 
@@ -81,20 +84,47 @@ cameras:
 python main.py
 ```
 
+## Web Dashboard
+
+Access at `http://localhost:5000`
+
+- **Dashboard** - Live camera feeds, recent events
+- **Cameras** - Camera status and management
+- **Events** - Event history with filters
+- **Zones** - Security zone management (Add/Edit/Delete)
+- **Recordings** - Recorded clips
+- **JARVIS AI** - Chat with AI assistant
+- **Telegram** - View Telegram chat
+- **System** - System status and settings
+
 ## Telegram Commands
 
 | Command | Description |
 |---------|-------------|
-| `/status` | System status |
-| `/mode <home\|away\|sleep>` | Change security mode |
-| `/events` | Recent events |
+| `/status` | System status + PC stats (CPU/RAM/Disk) |
 | `/cameras` | Camera status |
 | `/snapshot <camera>` | Get camera snapshot |
 | `/clip <camera>` | Get last event clip |
-| `/history <hours>` | Event history |
-| `/summary` | Daily summary |
+| `/mode <home\|away\|sleep>` | Change security mode |
+| `/events [hours]` | Recent events |
 | `/zones` | List security zones |
+| `/addzone <name> <camera>` | Add a new zone |
+| `/editzone <name> <setting> <value>` | Edit zone settings |
+| `/delzone <name>` | Delete a zone |
 | `/mute <minutes>` | Mute alerts |
+| `/disk` | Disk space info |
+| `/restart` | Restart system |
+| `/help` | Show all commands |
+
+## Natural Language Commands
+
+Just type in Telegram or Web Chat:
+
+- "Front gate ka snapshot bhejo"
+- "Recording path D:\CCTV karo"
+- "Kya hua hai aaj?"
+- "Naya zone banao backyard pe"
+- "Mode away karo"
 
 ## Connection Modes
 
@@ -114,6 +144,7 @@ python main.py
 - `config/settings.yaml` - General settings, LLM, Telegram
 - `config/cameras.yaml` - Camera configurations
 - `config/zones.yaml` - Security zones and rules
+- `config/settings.example.yaml` - Template for settings
 
 ## Logs
 
@@ -131,19 +162,6 @@ python service.py install
 python service.py start
 ```
 
-## Docker Deployment
-
-```bash
-# Build and start
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
 ## Directory Structure
 
 ```
@@ -157,9 +175,10 @@ jarvis-home/
 ├── run.bat              # Windows run script
 ├── run.sh               # Linux run script
 ├── config/
-│   ├── settings.yaml    # General settings
-│   ├── cameras.yaml     # Camera configs
-│   └── zones.yaml       # Security zones
+│   ├── settings.yaml    # General settings (gitignored)
+│   ├── cameras.yaml     # Camera configs (gitignored)
+│   ├── zones.yaml       # Security zones
+│   └── settings.example.yaml  # Settings template
 ├── core/
 │   ├── camera_manager.py    # Camera handling
 │   ├── detector.py          # YOLO detection
@@ -174,6 +193,10 @@ jarvis-home/
 │   └── telegram_bot.py  # Telegram interface
 ├── llm/
 │   └── chat_engine.py   # LLM integration
+├── web/
+│   ├── app.py           # Flask web server
+│   ├── templates/       # HTML templates
+│   └── static/          # CSS, JS, assets
 └── data/
     ├── recordings/      # Video recordings
     ├── snapshots/       # Event snapshots

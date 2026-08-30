@@ -3,6 +3,7 @@ import re
 import json
 import asyncio
 import yaml
+import psutil
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,7 +26,7 @@ class IntentParser:
     ALLOWED_ACTIONS = {
         "visual", "snapshot", "status", "mode", "events", "cameras", "zones",
         "disk", "restart", "addcam", "delcam", "recpath", "setting", "mute",
-        "help", "chat",
+        "help", "chat", "addzone", "editzone", "delzone",
     }
 
     INTENTS = {
@@ -53,6 +54,9 @@ class IntentParser:
         "recpath": {"keywords": ["recording path", "save path", "path change", "path set", "recording kaha"], "params": ["path"]},
         "setting": {"keywords": ["setting", "config", "change setting", "threshold", "confidence"], "params": ["key", "value"]},
         "mute": {"keywords": ["mute", "silence", "chup", "alert off", "notifications off", "disturb mat"], "params": ["minutes"]},
+        "addzone": {"keywords": ["add zone", "naya zone", "zone add", "new zone", "zone banao"], "params": ["zone", "camera"]},
+        "editzone": {"keywords": ["edit zone", "zone edit", "zone change", "zone update"], "params": ["zone"]},
+        "delzone": {"keywords": ["delete zone", "zone delete", "zone hatao", "remove zone", "zone nikalo"], "params": ["zone"]},
         "help": {"keywords": ["help", "commands", "kya kar sakta hai", "options", "madad"], "params": []},
     }
 
@@ -291,6 +295,9 @@ class JarvisBot:
         self.app.add_handler(CommandHandler("history", self.cmd_history))
         self.app.add_handler(CommandHandler("summary", self.cmd_summary))
         self.app.add_handler(CommandHandler("zones", self.cmd_zones))
+        self.app.add_handler(CommandHandler("addzone", self.cmd_addzone))
+        self.app.add_handler(CommandHandler("editzone", self.cmd_editzone))
+        self.app.add_handler(CommandHandler("delzone", self.cmd_delzone))
         self.app.add_handler(CommandHandler("mute", self.cmd_mute))
         self.app.add_handler(CommandHandler("addcam", self.cmd_addcam))
         self.app.add_handler(CommandHandler("delcam", self.cmd_delcam))
@@ -343,6 +350,9 @@ class JarvisBot:
             "/mode <home|away|sleep> - Change mode\n"
             "/events [hours] - Recent events\n"
             "/zones - List zones\n"
+            "/addzone <name> <camera> - Add zone\n"
+            "/editzone <name> <setting> <value> - Edit zone\n"
+            "/delzone <name> - Delete zone\n"
             "/mute <minutes> - Mute alerts\n\n"
             "Settings:\n"
             "/recpath <path> - Set recording path\n"
@@ -356,22 +366,43 @@ class JarvisBot:
 
     async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
+            import psutil
             camera_status = self.camera_manager.get_camera_status()
-            event_stats = self.storage.get_event_stats(hours=24)
-            status_text = f"JARVIS Status\n\nMode: {self.security_mode.upper()}\n\nCameras:\n"
-            online_count = 0
+            recent_events = self.storage.get_recent_events(hours=24, limit=5)
+            
+            # PC Stats
+            cpu = psutil.cpu_percent(interval=1)
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage(os.getcwd())
+            
+            status_text = f"JARVIS Status\n\n"
+            status_text += f"Mode: {self.security_mode.upper()}\n\n"
+            status_text += f"PC Stats:\n"
+            status_text += f"  CPU: {cpu}%\n"
+            status_text += f"  RAM: {mem.percent}% ({mem.used // (1024**2)}MB / {mem.total // (1024**2)}MB)\n"
+            status_text += f"  Disk: {disk.percent}% ({disk.free // (1024**3)}GB free)\n\n"
+            
+            # Cameras
+            online_count = sum(1 for s in camera_status.values() if s["connected"])
+            status_text += f"Cameras: {online_count}/{len(camera_status)} online\n"
             for name, status in camera_status.items():
-                icon = "ONLINE" if status["connected"] else "OFFLINE"
-                if status["connected"]:
-                    online_count += 1
+                icon = "ON" if status["connected"] else "OFF"
                 status_text += f"  {name}: {icon}\n"
-            status_text += f"\n{online_count}/{len(camera_status)} online\n"
-            if event_stats:
+            
+            # Recent Events with time
+            if recent_events:
                 status_text += "\nEvents (24h):\n"
-                for stat in event_stats:
-                    status_text += f"  {stat[0]} - {stat[1]}: {stat[2]}\n"
+                for e in recent_events:
+                    ts = e.get("timestamp", "")
+                    try:
+                        dt = datetime.fromisoformat(ts)
+                        time_str = dt.strftime("%I:%M %p")
+                    except:
+                        time_str = ts[:16]
+                    status_text += f"  {time_str} | {e.get('camera_name')} - {e.get('event_type')}\n"
             else:
                 status_text += "\nNo events in 24h.\n"
+            
             await update.message.reply_text(status_text)
         except Exception as e:
             logger.error(f"Error in /status: {e}")
@@ -543,6 +574,137 @@ class JarvisBot:
         except Exception as e:
             logger.error(f"Error in /zones: {e}")
             await update.message.reply_text("Error getting zones.")
+
+    async def cmd_addzone(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            if len(context.args) < 2:
+                await update.message.reply_text(
+                    "Usage: /addzone <zone_name> <camera_name>\n"
+                    "Example: /addzone front_entry Front Gate"
+                )
+                return
+            zone_name = context.args[0].replace(" ", "_").lower()
+            camera_name = " ".join(context.args[1:])
+            cameras = list(self.camera_manager.cameras.keys())
+            matched_camera = None
+            for cam in cameras:
+                if cam.lower() == camera_name.lower():
+                    matched_camera = cam
+                    break
+            if not matched_camera:
+                await update.message.reply_text(
+                    f"Camera not found: {camera_name}\n\n"
+                    f"Available cameras:\n{', '.join(cameras)}"
+                )
+                return
+            if zone_name in self.zone_manager.zones:
+                await update.message.reply_text(f"Zone '{zone_name}' already exists. Use /editzone to modify.")
+                return
+            areas = [{
+                "name": f"{zone_name}_area",
+                "type": "restricted",
+                "alert_on_entry": True,
+                "alert_hours": "24h",
+                "description": f"Zone for {matched_camera}",
+            }]
+            self.zone_manager.add_zone(zone_name, matched_camera, areas)
+            security_log.log_config_change(f"Zone added: {zone_name} on {matched_camera}", user="telegram")
+            await update.message.reply_text(
+                f"Zone added!\n\n"
+                f"Name: {zone_name}\n"
+                f"Camera: {matched_camera}\n"
+                f"Type: restricted\n"
+                f"Alert: 24h\n\n"
+                f"Restart to apply."
+            )
+        except Exception as e:
+            logger.error(f"Error in /addzone: {e}")
+            await update.message.reply_text("Error adding zone.")
+
+    async def cmd_editzone(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            if len(context.args) < 2:
+                zones = list(self.zone_manager.zones.keys())
+                await update.message.reply_text(
+                    "Usage: /editzone <zone_name> <setting> <value>\n\n"
+                    f"Zones: {', '.join(zones) if zones else 'None'}\n\n"
+                    "Settings:\n"
+                    "  type <restricted|monitoring>\n"
+                    "  alert <on|off>\n"
+                    "  hours <24h|night|day>\n"
+                    "  camera <camera_name>\n\n"
+                    "Example:\n"
+                    "  /editzone front_gate type monitoring\n"
+                    "  /editzone front_gate alert off"
+                )
+                return
+            zone_name = context.args[0].replace(" ", "_").lower()
+            if zone_name not in self.zone_manager.zones:
+                await update.message.reply_text(f"Zone not found: {zone_name}")
+                return
+            setting = context.args[1].lower()
+            value = " ".join(context.args[2:]) if len(context.args) > 2 else ""
+            zone = self.zone_manager.zones[zone_name]
+            areas = zone.get("areas", [])
+            if not areas:
+                await update.message.reply_text("Zone has no areas configured.")
+                return
+            area = areas[0]
+            if setting == "type":
+                if value not in ["restricted", "monitoring"]:
+                    await update.message.reply_text("Type must be: restricted or monitoring")
+                    return
+                area["type"] = value
+            elif setting == "alert":
+                if value not in ["on", "off"]:
+                    await update.message.reply_text("Alert must be: on or off")
+                    return
+                area["alert_on_entry"] = value == "on"
+            elif setting == "hours":
+                if value not in ["24h", "night", "day"]:
+                    await update.message.reply_text("Hours must be: 24h, night, or day")
+                    return
+                area["alert_hours"] = value
+            elif setting == "camera":
+                cameras = list(self.camera_manager.cameras.keys())
+                matched = None
+                for cam in cameras:
+                    if cam.lower() == value.lower():
+                        matched = cam
+                        break
+                if not matched:
+                    await update.message.reply_text(f"Camera not found: {value}\nAvailable: {', '.join(cameras)}")
+                    return
+                zone["camera"] = matched
+            else:
+                await update.message.reply_text("Unknown setting. Use: type, alert, hours, camera")
+                return
+            self.zone_manager.update_zone(zone_name, areas)
+            security_log.log_config_change(f"Zone edited: {zone_name} - {setting}={value}", user="telegram")
+            await update.message.reply_text(f"Zone updated!\n\n{zone_name}: {setting} = {value}")
+        except Exception as e:
+            logger.error(f"Error in /editzone: {e}")
+            await update.message.reply_text("Error editing zone.")
+
+    async def cmd_delzone(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            if not context.args:
+                zones = list(self.zone_manager.zones.keys())
+                await update.message.reply_text(
+                    f"Usage: /delzone <zone_name>\n\n"
+                    f"Zones: {', '.join(zones) if zones else 'None'}"
+                )
+                return
+            zone_name = context.args[0].replace(" ", "_").lower()
+            if zone_name not in self.zone_manager.zones:
+                await update.message.reply_text(f"Zone not found: {zone_name}")
+                return
+            self.zone_manager.remove_zone(zone_name)
+            security_log.log_config_change(f"Zone deleted: {zone_name}", user="telegram")
+            await update.message.reply_text(f"Zone deleted: {zone_name}\n\nRestart to apply.")
+        except Exception as e:
+            logger.error(f"Error in /delzone: {e}")
+            await update.message.reply_text("Error deleting zone.")
 
     async def cmd_mute(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
@@ -779,6 +941,51 @@ class JarvisBot:
                 text += f"- {name}\n"
             return text
 
+        elif intent == "addzone":
+            zone = params.get("zone", "")
+            camera = params.get("camera", "")
+            if not zone or not camera:
+                return "Need: zone name and camera\nExample: addzone front_entry Front Gate"
+            zone_key = zone.replace(" ", "_").lower()
+            cameras = list(self.camera_manager.cameras.keys())
+            matched = None
+            for cam in cameras:
+                if cam.lower() == camera.lower():
+                    matched = cam
+                    break
+            if not matched:
+                return f"Camera not found: {camera}\nAvailable: {', '.join(cameras)}"
+            if zone_key in self.zone_manager.zones:
+                return f"Zone '{zone_key}' exists. Use editzone to modify."
+            areas = [{"name": f"{zone_key}_area", "type": "restricted", "alert_on_entry": True, "alert_hours": "24h"}]
+            self.zone_manager.add_zone(zone_key, matched, areas)
+            return f"Zone added: {zone_key} on {matched}\nRestart to apply."
+
+        elif intent == "editzone":
+            zone = params.get("zone", "")
+            if not zone:
+                return "Need: zone name\nExample: editzone front_gate"
+            zone_key = zone.replace(" ", "_").lower()
+            if zone_key not in self.zone_manager.zones:
+                return f"Zone not found: {zone_key}"
+            text = f"Zone: {zone_key}\n"
+            z = self.zone_manager.zones[zone_key]
+            text += f"Camera: {z.get('camera', 'N/A')}\n"
+            for a in z.get("areas", []):
+                text += f"  Area: {a.get('name')} | Type: {a.get('type')} | Alert: {'on' if a.get('alert_on_entry') else 'off'}\n"
+            text += "\nUse /editzone <zone> <setting> <value> to change.\nSettings: type, alert, hours, camera"
+            return text
+
+        elif intent == "delzone":
+            zone = params.get("zone", "")
+            if not zone:
+                return "Need: zone name\nExample: delzone front_gate"
+            zone_key = zone.replace(" ", "_").lower()
+            if zone_key not in self.zone_manager.zones:
+                return f"Zone not found: {zone_key}"
+            self.zone_manager.remove_zone(zone_key)
+            return f"Zone deleted: {zone_key}\nRestart to apply."
+
         elif intent == "disk":
             import psutil
             usage = psutil.disk_usage(os.getcwd())
@@ -863,7 +1070,8 @@ class JarvisBot:
                 "Commands:\n"
                 "/status, /cameras, /snapshot, /mode\n"
                 "/events, /zones, /disk, /restart\n"
-                "/addcam, /delcam, /recpath, /setting\n\n"
+                "/addcam, /delcam, /recpath, /setting\n"
+                "/addzone, /editzone, /delzone\n\n"
                 "Or just tell me what to do!"
             )
 

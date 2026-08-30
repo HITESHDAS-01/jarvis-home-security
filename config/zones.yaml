@@ -1,66 +1,22 @@
-# JARVIS Home - Zone Configuration
-# Define security zones and rules for each camera
-
-zones:
-  front_gate:
-    camera: "Front Gate"
-    areas:
-      - name: "entry_zone"
-        type: "restricted"
-        alert_on_entry: true
-        alert_hours: "24h"
-        description: "Main entry point to property"
-
-  main_door:
-    camera: "Main Door"
-    areas:
-      - name: "door_area"
-        type: "restricted"
-        alert_on_entry: true
-        alert_hours: "24h"
-        description: "Main entrance door"
-
-  backyard:
-    camera: "Backyard"
-    areas:
-      - name: "backyard_area"
-        type: "restricted"
-        alert_on_entry: true
-        alert_hours: "night_only"
-        night_start: "22:00"
-        night_end: "06:00"
-        description: "Backyard perimeter"
-
-  driveway:
-    camera: "Driveway"
-    areas:
-      - name: "driveway_area"
-        type: "monitoring"
-        alert_on_entry: false
-        alert_hours: "24h"
-        description: "Vehicle parking area"
-
 security_rules:
-  - name: "night_intrusion"
-    trigger: "person_detected"
-    time_range: "22:00-06:00"
-    severity: "high"
-    action: "alert_immediate"
-
-  - name: "unauthorized_entry"
-    trigger: "person_in_restricted"
-    time_range: "24h"
-    severity: "high"
-    action: "alert_immediate"
-
-  - name: "multiple_people"
-    trigger: "person_count_gt_2"
-    time_range: "24h"
-    severity: "medium"
-    action: "alert"
-
-  - name: "loitering"
-    trigger: "person_stay_gt_120s"
-    time_range: "24h"
-    severity: "medium"
-    action: "alert"
+- action: alert_immediate
+  name: night_intrusion
+  severity: high
+  time_range: 22:00-06:00
+  trigger: person_detected
+- action: alert_immediate
+  name: unauthorized_entry
+  severity: high
+  time_range: 24h
+  trigger: person_in_restricted
+- action: alert
+  name: multiple_people
+  severity: medium
+  time_range: 24h
+  trigger: person_count_gt_2
+- action: alert
+  name: loitering
+  severity: medium
+  time_range: 24h
+  trigger: person_stay_gt_120s
+zones: {}

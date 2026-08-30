@@ -7,7 +7,7 @@ detection:
   - motorcycle
   - truck
   confidence_threshold: 0.5
-  frame_interval: 30
+  frame_interval: 5
   model: yolov8n.pt
 jarvis:
   name: JARVIS

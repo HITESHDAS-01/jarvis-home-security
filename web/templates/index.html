@@ -91,8 +91,25 @@
 
                 <!-- ZONES -->
                 <div class="page" id="page-zones">
-                    <div class="zones-header"><h3>Security Zones</h3><button class="btn-primary" onclick="addZone()"><i class="fas fa-plus"></i> Add Zone</button></div>
+                    <div class="zones-header"><h3>Security Zones</h3><button class="btn-primary" onclick="showAddZoneModal()"><i class="fas fa-plus"></i> Add Zone</button></div>
                     <div class="zones-grid" id="zones-grid"></div>
+                </div>
+
+                <!-- ZONE MODAL -->
+                <div class="modal-overlay" id="zone-modal" style="display:none">
+                    <div class="modal">
+                        <div class="modal-header"><h3 id="zone-modal-title">Add Zone</h3><button class="modal-close" onclick="closeZoneModal()">&times;</button></div>
+                        <form id="zone-form" onsubmit="return saveZone(event)">
+                            <input type="hidden" id="zone-edit-key" value="">
+                            <div class="form-group"><label>Zone Key</label><input type="text" id="zone-key" placeholder="e.g. front_gate" required></div>
+                            <div class="form-group"><label>Camera</label><select id="zone-camera"></select></div>
+                            <div class="form-group"><label>Area Name</label><input type="text" id="zone-area-name" placeholder="detection_area" value="detection_area"></div>
+                            <div class="form-group"><label>Type</label><select id="zone-type"><option value="restricted">Restricted</option><option value="monitoring">Monitoring</option></select></div>
+                            <div class="form-group"><label>Alert on Entry</label><select id="zone-alert"><option value="true">Yes</option><option value="false">No</option></select></div>
+                            <div class="form-group"><label>Alert Hours</label><select id="zone-hours"><option value="24h">24 Hours</option><option value="night">Night Only</option><option value="day">Day Only</option></select></div>
+                            <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeZoneModal()">Cancel</button><button type="submit" class="btn-primary">Save</button></div>
+                        </form>
+                    </div>
                 </div>
 
                 <!-- RECORDINGS -->
@@ -391,6 +408,6 @@
         </main>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=2"></script>
 </body>
 </html>

@@ -47,7 +47,7 @@ class EventEngine:
         self.config = config
         self.running = False
         self.event_callbacks = []
-        self.detection_interval = config.get("detection", {}).get("frame_interval", 30)
+        self.detection_interval = config.get("detection", {}).get("frame_interval", 5)
         self.frame_count = 0
         self.last_detections = {}
         self.deduplicator = EventDeduplicator(cooldown_seconds=60)

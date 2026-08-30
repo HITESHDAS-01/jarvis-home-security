@@ -217,11 +217,114 @@ async function loadSystemInfo() {
     }
 }
 
+let currentZones = {};
+
 async function loadZones() {
     const d = await api('/api/zones');
     if (d?.zones) {
-        document.getElementById('zones-grid').innerHTML = Object.entries(d.zones).map(([n,z]) => `<div class="zone-card"><h4>${n}</h4><div class="zone-info"><span>Camera: ${z.camera||'Any'}</span><span>Type: ${z.type||'Detection'}</span><span>Status: Active</span></div></div>`).join('');
+        currentZones = d.zones;
+        document.getElementById('zones-grid').innerHTML = Object.entries(d.zones).map(([n,z]) => {
+            const areas = (z.areas || []).map(a => `<span>${a.name} (${a.type || 'restricted'})</span>`).join(', ');
+            return `<div class="zone-card">
+                <div style="display:flex;justify-content:space-between;align-items:start">
+                    <h4>${n}</h4>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn-sm" onclick="editZone('${n}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn-sm btn-danger" onclick="deleteZone('${n}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="zone-info">
+                    <span>Camera: ${z.camera||'Any'}</span>
+                    <span>Areas: ${areas || 'None'}</span>
+                </div>
+            </div>`;
+        }).join('');
     }
+}
+
+function editZone(name) {
+    const zone = currentZones?.[name];
+    if (!zone) return;
+    document.getElementById('zone-modal-title').textContent = 'Edit Zone';
+    document.getElementById('zone-edit-key').value = name;
+    document.getElementById('zone-key').value = name;
+    document.getElementById('zone-key').disabled = true;
+    const area = (zone.areas || [])[0] || {};
+    document.getElementById('zone-area-name').value = area.name || 'detection_area';
+    document.getElementById('zone-type').value = area.type || 'restricted';
+    document.getElementById('zone-alert').value = area.alert_on_entry !== false ? 'true' : 'false';
+    document.getElementById('zone-hours').value = area.alert_hours || '24h';
+    loadZoneCameras().then(() => { document.getElementById('zone-camera').value = zone.camera || ''; });
+    document.getElementById('zone-modal').style.display = 'flex';
+}
+
+function deleteZone(name) {
+    if (!confirm(`Delete zone "${name}"?`)) return;
+    api('/api/zones/delete', {
+        method: 'POST',
+        body: JSON.stringify({ key: name })
+    }).then(d => {
+        if (d?.success) { addLog(`Zone deleted: ${name}`); loadZones(); }
+        else addLog(`Error: ${d?.error || 'Failed'}`);
+    });
+}
+
+async function showAddZoneModal() {
+    document.getElementById('zone-modal-title').textContent = 'Add Zone';
+    document.getElementById('zone-edit-key').value = '';
+    document.getElementById('zone-key').value = '';
+    document.getElementById('zone-key').disabled = false;
+    document.getElementById('zone-area-name').value = 'detection_area';
+    document.getElementById('zone-type').value = 'restricted';
+    document.getElementById('zone-alert').value = 'true';
+    document.getElementById('zone-hours').value = '24h';
+    await loadZoneCameras();
+    document.getElementById('zone-modal').style.display = 'flex';
+}
+
+async function loadZoneCameras() {
+    const d = await api('/api/cameras');
+    const sel = document.getElementById('zone-camera');
+    sel.innerHTML = '';
+    if (d?.cameras) {
+        d.cameras.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.name;
+            opt.textContent = c.name;
+            sel.appendChild(opt);
+        });
+    }
+}
+
+function closeZoneModal() {
+    document.getElementById('zone-modal').style.display = 'none';
+}
+
+async function saveZone(e) {
+    e.preventDefault();
+    const editKey = document.getElementById('zone-edit-key').value;
+    const key = document.getElementById('zone-key').value.trim();
+    const camera = document.getElementById('zone-camera').value;
+    const areaName = document.getElementById('zone-area-name').value.trim() || 'detection_area';
+    const type = document.getElementById('zone-type').value;
+    const alert = document.getElementById('zone-alert').value === 'true';
+    const hours = document.getElementById('zone-hours').value;
+    if (!key || !camera) { addLog('Zone key and camera required'); return false; }
+    let d;
+    if (editKey) {
+        d = await api('/api/zones/update', {
+            method: 'POST',
+            body: JSON.stringify({ key: editKey, type, alert_on_entry: alert, alert_hours: hours })
+        });
+    } else {
+        d = await api('/api/zones/save', {
+            method: 'POST',
+            body: JSON.stringify({ key, camera, area_name: areaName, type, alert_on_entry: alert, alert_hours: hours })
+        });
+    }
+    if (d?.success) { addLog(editKey ? `Zone updated: ${editKey}` : `Zone added: ${key}`); loadZones(); closeZoneModal(); }
+    else addLog(`Error: ${d?.error || 'Failed'}`);
+    return false;
 }
 
 async function loadSettings() {
@@ -489,8 +592,6 @@ function takeSnapshotAll() {
 }
 
 function toggleRecording() { addLog('Manual recording started'); }
-
-function addZone() { addLog('Zone editor coming soon'); }
 
 function restartSystem() {
     if (confirm('Restart JARVIS system?')) {
